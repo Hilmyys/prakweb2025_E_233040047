@@ -1,14 +1,13 @@
-
 <?php
 
+use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\RegisterController;
 use App\Http\Controllers\LoginController;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\DashboardPostController;
 use App\Models\Category;
 
-// Contoh route untuk menampilkan view
 Route::get('/', function () {
     return view('welcome');
 });
@@ -29,37 +28,31 @@ Route::get('/categories', function () {
     return view('categories');
 });
 
-Route::get('/', function () {
-    return view('welcome');
+Route::get('/posts', [PostController::class, 'index'])->name('posts.index');
+Route::get('/posts/{post:slug}', [PostController::class, 'show'])->name('posts.show');
+
+Route::middleware('guest')->group(function () {
+    Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');
+    Route::post('/register', [RegisterController::class, 'register']);
+    
+    Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+    Route::post('/login', [LoginController::class, 'login']);
 });
 
-// Protect posts dan categories dengan auth middleware
-// Route dari laraveltest-main
-Route::get('/posts', [PostController::class, 'index'])
-    ->middleware('auth')
-    ->name('posts.index');
+Route::post('/logout', [LoginController::class, 'logout'])->middleware('auth')->name('logout');
 
-// Route Model Binding dengan slug
-Route::get('/posts/{post:slug}', [PostController::class, 'show'])
-    ->middleware('auth')
-    ->name('posts.show');
+Route::middleware(['auth'])->group(function () {
+        Route::get('/dashboard', function() {
+        return redirect('/dashboard/posts');
+    });
 
-// Route untuk register - middleware guest (hanya untuk yang belum login)
-Route::get('/register', [RegisterController::class, 'showRegistrationForm'])
-    ->middleware('guest')
-    ->name('register');
-
-Route::post('/register', [RegisterController::class, 'register'])
-    ->middleware('guest');
-
-// Route untuk login - middleware guest (hanya untuk yang belum login)
-Route::get('/login', [LoginController::class, 'showLoginForm'])
-    ->middleware('guest')
-    ->name('login');
-
-Route::post('/login', [LoginController::class, 'login'])
-    ->middleware('guest');
-
-// Route logout - hanya untuk yang sudah login
-Route::post('/logout', [LoginController::class, 'logout'])
-    ->name('logout');
+     Route::resource('/dashboard/posts', DashboardPostController::class)->names([
+        'index'   => 'dashboard.posts.index',
+        'create'  => 'dashboard.posts.create',
+        'store'   => 'dashboard.posts.store',
+        'show'    => 'dashboard.posts.show',
+        'edit'    => 'dashboard.posts.edit',
+        'update'  => 'dashboard.posts.update',
+        'destroy' => 'dashboard.posts.destroy',
+    ]);
+});

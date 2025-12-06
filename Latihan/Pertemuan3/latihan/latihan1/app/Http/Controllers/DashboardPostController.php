@@ -10,17 +10,15 @@ use Illuminate\Support\Facades\Storage;
 
 class DashboardPostController extends Controller
 {
-    // READ (Halaman 13)
     public function index()
     {
         return view('dashboard.posts.index', [
             'posts' => Post::where('user_id', auth()->user()->id)
-                        ->latest()
-                        ->paginate(10) // Pagination
+                        ->with('category') 
+                        ->paginate(10)
         ]);
     }
 
-    // FORM CREATE (Halaman 18)
     public function create()
     {
         return view('dashboard.posts.create', [
@@ -28,43 +26,39 @@ class DashboardPostController extends Controller
         ]);
     }
 
-    // STORE (CREATE + UPLOAD + VALIDASI) (Halaman 20 & 22)
     public function store(Request $request)
     {
-        // 1. Validasi
         $validatedData = $request->validate([
             'title' => 'required|max:255',
             'slug'  => 'required|unique:posts',
             'category_id' => 'required',
-            'image' => 'image|file|max:2048', // Validasi Gambar
+            'image' => 'image|file|max:2048', 
             'body' => 'required'
         ]);
 
-        // 2. Upload Gambar jika ada
         if ($request->file('image')) {
-            $validatedData['image'] = $request->file('image')->store('post-images');
+            // PERBAIKAN: Tambahkan 'public' agar masuk ke storage/app/public
+            $validatedData['image'] = $request->file('image')->store('post-images', 'public');
         }
 
-        // 3. Tambahkan data user_id dan excerpt
         $validatedData['user_id'] = auth()->user()->id;
         $validatedData['excerpt'] = Str::limit(strip_tags($request->body), 200);
 
-        // 4. Simpan ke Database
         Post::create($validatedData);
 
         return redirect()->route('dashboard.posts.index')->with('success', 'Postingan baru berhasil ditambahkan!');
     }
 
-    // SHOW
     public function show(Post $post)
     {
         return view('dashboard.posts.show', ['post' => $post]);
     }
 
-    // FORM EDIT (TUGAS PRAKTEK: UPDATE)
     public function edit(Post $post)
     {
-        if($post->author->id !== auth()->user()->id) {
+        // Pastikan model Post punya relasi method author() atau user()
+        // Jika di model nama fungsinya user(), ganti author->id jadi user->id
+        if($post->user_id !== auth()->user()->id) {
             abort(403);
         }
 
@@ -74,7 +68,6 @@ class DashboardPostController extends Controller
         ]);
     }
 
-    // UPDATE (TUGAS PRAKTEK: UPDATE)
     public function update(Request $request, Post $post)
     {
         $rules = [
@@ -84,20 +77,19 @@ class DashboardPostController extends Controller
             'body' => 'required'
         ];
 
-        // Cek slug, jika ganti baru divalidasi unique
         if($request->slug != $post->slug) {
             $rules['slug'] = 'required|unique:posts';
         }
 
         $validatedData = $request->validate($rules);
 
-        // Cek Gambar Baru
         if ($request->file('image')) {
-            // Hapus gambar lama jika ada
             if ($post->image) {
+                // Hapus gambar lama
                 Storage::delete($post->image);
             }
-            $validatedData['image'] = $request->file('image')->store('post-images');
+            // PERBAIKAN: Tambahkan 'public'
+            $validatedData['image'] = $request->file('image')->store('post-images', 'public');
         }
 
         $validatedData['user_id'] = auth()->user()->id;
@@ -107,8 +99,6 @@ class DashboardPostController extends Controller
 
         return redirect()->route('dashboard.posts.index')->with('success', 'Postingan berhasil diperbarui!');
     }
-
-    // DELETE (TUGAS PRAKTEK: DELETE)
     public function destroy(Post $post)
     {
         if ($post->image) {
@@ -117,5 +107,10 @@ class DashboardPostController extends Controller
         
         Post::destroy($post->id);
         return redirect()->route('dashboard.posts.index')->with('success', 'Postingan berhasil dihapus!');
+    }
+    public function checkSlug(Request $request)
+    {
+        $slug = \Cviebrock\EloquentSluggable\Services\SlugService::createSlug(Post::class, 'slug', $request->title);
+        return response()->json(['slug' => $slug]);
     }
 }
