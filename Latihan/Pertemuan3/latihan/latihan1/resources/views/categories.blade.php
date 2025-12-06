@@ -1,5 +1,5 @@
 <x-layout>
-    <x-slot:title>Blog</x-slot:title>
+    <x-slot:title>categories</x-slot:title>
 
     <h1 class="text-3xl font-bold mb-4">Tulisan Terbaru</h1>
 
